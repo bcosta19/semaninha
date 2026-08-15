@@ -1,5 +1,6 @@
 const ALLOWED_HOSTS = new Set([
   "lastfm.freetls.fastly.net",
+  "lastfm-img.freetls.fastly.net",
   "lastfm-img2.akamaized.net",
   "img2-ak.lst.fm",
   "img3-ak.lst.fm",
