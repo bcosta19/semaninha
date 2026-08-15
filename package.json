@@ -1,0 +1,14 @@
+{
+  "name": "semaninha",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Uma arte semanal com os scrobbles do Last.fm.",
+  "scripts": {
+    "dev": "wrangler pages dev .",
+    "deploy": "wrangler pages deploy ."
+  },
+  "devDependencies": {
+    "wrangler": "^4.28.0"
+  }
+}
