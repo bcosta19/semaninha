@@ -2,6 +2,7 @@ const form = document.querySelector("#lookup-form");
 const usernameInput = document.querySelector("#username");
 const periodInput = document.querySelector("#period");
 const focusInput = document.querySelector("#focus");
+const gridInput = document.querySelector("#grid");
 const statusMessage = document.querySelector("#status");
 const submitButton = form.querySelector("button[type=submit]");
 const emptyArt = document.querySelector("#empty-art");
@@ -22,6 +23,7 @@ form.addEventListener("submit", async (event) => {
       username,
       period: periodInput.value,
       focus: focusInput.value,
+      grid: gridInput.value,
     });
     const response = await fetch(`/api/weekly?${params}`);
     const data = await response.json();
@@ -31,7 +33,7 @@ form.addEventListener("submit", async (event) => {
     renderPreview(data);
     const primaryItems = data.focus === "artists" ? data.artists : data.albums;
     const primaryLabel = data.focus === "artists" ? "artistas" : "álbuns";
-    setStatus(`${primaryItems.length} ${primaryLabel} e ${data.tracks.length} faixas encontrados.`, "success");
+    setStatus(`${primaryItems.length} ${primaryLabel} em uma grade ${data.grid.size}×${data.grid.size}.`, "success");
   } catch (error) {
     setStatus(error.message || "Não foi possível consultar o Last.fm.", "");
   } finally {
@@ -40,30 +42,19 @@ form.addEventListener("submit", async (event) => {
 });
 
 function renderPreview(data) {
-  const primaryItems = (data.focus === "artists" ? data.artists : data.albums).slice(0, 3);
-  const primaryLabel = data.focus === "artists" ? "artistas" : "álbuns";
-  const tracks = data.tracks.slice(0, 5);
+  const primaryItems = data.items || (data.focus === "artists" ? data.artists : data.albums);
+  const gridSize = data.grid?.size || 5;
   const period = formatPeriod(data.period);
 
   preview.innerHTML = `
-    <article class="art-card" id="result-art">
-      <div class="art-header">
-        <span class="art-kicker">semaninha / 01</span>
-        <span class="art-spark" aria-hidden="true">✳</span>
+    <article class="grid-result" id="result-art">
+      <div class="cover-grid" style="--grid-size: ${gridSize};">
+        ${Array.from({ length: gridSize * gridSize }, (_, index) => gridTileMarkup(primaryItems[index], index)).join("")}
       </div>
-      <div class="art-title">
-        <small>${escapeHtml(primaryLabel)},</small>
-        <strong title="${escapeAttribute(`@${data.username}`)}">@${escapeHtml(data.username)}</strong>
-        <span class="art-meta">${escapeHtml(period)}</span>
+      <div class="grid-caption">
+        <span>@${escapeHtml(data.username)} · ${escapeHtml(period)}</span>
+        <span>${gridSize}×${gridSize}</span>
       </div>
-      <div class="art-albums">
-        ${primaryItems.length ? primaryItems.map((item) => primaryItemMarkup(item, data.focus)).join("") : emptyPrimaryMarkup(data.focus)}
-      </div>
-      <div class="art-tracks">
-        <div class="art-section-label"><span>faixas mais ouvidas</span><span>plays</span></div>
-        ${tracks.length ? tracks.map(trackMarkup).join("") : emptyTrackMarkup()}
-      </div>
-      <div class="art-foot"><span>ouvindo via last.fm</span><span>✳</span></div>
     </article>
     <div class="result-actions">
       <button class="download-button" id="download-button" type="button">baixar imagem ↓</button>
@@ -76,11 +67,21 @@ function renderPreview(data) {
   preview.querySelectorAll("img").forEach((image) => {
     image.addEventListener("error", () => {
       image.hidden = true;
-      image.closest(".cover")?.classList.add("cover-failed");
+      image.closest(".grid-tile, .cover")?.classList.add("cover-failed");
     });
   });
   preview.querySelector("#download-button").addEventListener("click", downloadImage);
   preview.querySelector("#new-search-button").addEventListener("click", resetSearch);
+}
+
+function gridTileMarkup(item, index) {
+  const image = item?.image ? `<img src="${imageUrl(item.image)}" alt="${escapeAttribute(item.name)}" />` : "";
+  const placeholder = item ? initials(item.name) : "—";
+  return `
+    <div class="grid-tile" title="${escapeAttribute(item?.name || `posição ${index + 1}`)}">
+      ${image}<span class="grid-placeholder">${escapeHtml(placeholder)}</span>
+    </div>
+  `;
 }
 
 function primaryItemMarkup(item, focus) {
@@ -134,9 +135,10 @@ async function downloadImage() {
 
   try {
     if (document.fonts?.ready) await document.fonts.ready;
-    const canvas = await buildCanvas(currentData);
+    const canvas = await buildGridCanvas(currentData);
     const link = document.createElement("a");
-    link.download = `semaninha-${slugify(currentData.username)}.png`;
+    const gridSize = currentData.grid?.size || 5;
+    link.download = `semaninha-${slugify(currentData.username)}-${gridSize}x${gridSize}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
     button.textContent = "imagem baixada ✓";
@@ -149,6 +151,44 @@ async function downloadImage() {
       button.textContent = "baixar imagem ↓";
     }, 2200);
   }
+}
+
+async function buildGridCanvas(data) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1080;
+  const ctx = canvas.getContext("2d");
+  const gridSize = data.grid?.size || 5;
+  const items = data.items || (data.focus === "artists" ? data.artists : data.albums) || [];
+  const tileSize = canvas.width / gridSize;
+  const fallbackColors = ["#ff735f", "#d8f36a", "#93aef9", "#393c47"];
+
+  for (let index = 0; index < gridSize * gridSize; index += 1) {
+    const item = items[index];
+    const x = (index % gridSize) * tileSize;
+    const y = Math.floor(index / gridSize) * tileSize;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, tileSize, tileSize);
+    ctx.clip();
+    const image = item?.image ? await loadImage(imageUrl(item.image)) : null;
+    if (image) {
+      drawCover(ctx, image, x, y, tileSize, tileSize);
+    } else {
+      ctx.fillStyle = fallbackColors[index % fallbackColors.length];
+      ctx.fillRect(x, y, tileSize, tileSize);
+      ctx.fillStyle = "rgba(17, 17, 17, .72)";
+      ctx.font = `700 ${Math.max(22, tileSize * 0.2)}px 'Space Grotesk', sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(item ? initials(item.name) : "—", x + tileSize / 2, y + tileSize / 2);
+      ctx.textAlign = "start";
+      ctx.textBaseline = "alphabetic";
+    }
+    ctx.restore();
+  }
+
+  return canvas;
 }
 
 async function buildCanvas(data) {

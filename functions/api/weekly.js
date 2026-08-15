@@ -8,12 +8,18 @@ const FOCUS_LABELS = {
   albums: "álbuns",
   artists: "artistas",
 };
+const GRID_SIZES = {
+  3: 9,
+  5: 25,
+  7: 49,
+};
 
 export async function onRequestGet({ request, env }) {
   const requestUrl = new URL(request.url);
   const username = (requestUrl.searchParams.get("username") || "").trim();
   const periodKey = requestUrl.searchParams.get("period") || "7day";
   const focus = requestUrl.searchParams.get("focus") || "albums";
+  const gridKey = requestUrl.searchParams.get("grid") || "5";
 
   if (!USERNAME_PATTERN.test(username)) {
     return respond({ error: "Digite um usuário Last.fm válido." }, 400);
@@ -25,6 +31,10 @@ export async function onRequestGet({ request, env }) {
 
   if (!FOCUS_LABELS[focus]) {
     return respond({ error: "Escolha uma fonte principal válida: álbuns ou artistas." }, 400);
+  }
+
+  if (!GRID_SIZES[gridKey]) {
+    return respond({ error: "Escolha uma grade válida: 3x3, 5x5 ou 7x7." }, 400);
   }
 
   if (!env.LASTFM_API_KEY) {
@@ -42,7 +52,7 @@ export async function onRequestGet({ request, env }) {
       queryLastFm(primaryMethod, {
         user: username,
         period: periodKey,
-        limit: "5",
+        limit: String(GRID_SIZES[gridKey]),
       }, env.LASTFM_API_KEY),
       queryLastFm("user.getTopTracks", {
         user: username,
@@ -65,6 +75,8 @@ export async function onRequestGet({ request, env }) {
       username: getText(primaryChart["@attr"]?.user) || getText(trackChart["@attr"]?.user) || username,
       period: { key: periodKey, label: PERIOD_LABELS[periodKey] },
       focus,
+      grid: { key: gridKey, size: Number(gridKey), count: GRID_SIZES[gridKey] },
+      items: focus === "artists" ? artists : albums,
       albums,
       artists,
       tracks: toList(trackChart.track).slice(0, 5).map((track, index) => normalizeTrack(track, index)),
@@ -100,8 +112,10 @@ async function queryLastFm(method, parameters, apiKey) {
 }
 
 async function addAlbumArtwork(albums, apiKey) {
+  let lookupsRemaining = 8;
   return Promise.all(albums.map(async (album) => {
-    if (album.image || !album.artist || !album.name) return album;
+    if (album.image || !album.artist || !album.name || lookupsRemaining <= 0) return album;
+    lookupsRemaining -= 1;
 
     try {
       const payload = await queryLastFm("album.getInfo", {
@@ -117,8 +131,10 @@ async function addAlbumArtwork(albums, apiKey) {
 }
 
 async function addArtistArtwork(artists, apiKey) {
+  let lookupsRemaining = 8;
   return Promise.all(artists.map(async (artist) => {
-    if (artist.image || !artist.name) return artist;
+    if (artist.image || !artist.name || lookupsRemaining <= 0) return artist;
+    lookupsRemaining -= 1;
 
     try {
       const payload = await queryLastFm("artist.getInfo", {
