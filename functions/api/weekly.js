@@ -1,12 +1,30 @@
 const LASTFM_ENDPOINT = "https://ws.audioscrobbler.com/2.0/";
 const USERNAME_PATTERN = /^[a-zA-Z0-9_\-\.]{1,64}$/;
+const PERIOD_LABELS = {
+  "7day": "últimos 7 dias",
+  "1month": "último mês",
+};
+const FOCUS_LABELS = {
+  albums: "álbuns",
+  artists: "artistas",
+};
 
 export async function onRequestGet({ request, env }) {
   const requestUrl = new URL(request.url);
   const username = (requestUrl.searchParams.get("username") || "").trim();
+  const periodKey = requestUrl.searchParams.get("period") || "7day";
+  const focus = requestUrl.searchParams.get("focus") || "albums";
 
   if (!USERNAME_PATTERN.test(username)) {
     return respond({ error: "Digite um usuário Last.fm válido." }, 400);
+  }
+
+  if (!PERIOD_LABELS[periodKey]) {
+    return respond({ error: "Escolha um período válido: 7 dias ou 1 mês." }, 400);
+  }
+
+  if (!FOCUS_LABELS[focus]) {
+    return respond({ error: "Escolha uma fonte principal válida: álbuns ou artistas." }, 400);
   }
 
   if (!env.LASTFM_API_KEY) {
@@ -17,23 +35,38 @@ export async function onRequestGet({ request, env }) {
   }
 
   try {
-    const [albumPayload, trackPayload] = await Promise.all([
-      queryLastFm("user.getWeeklyAlbumChart", { user: username }, env.LASTFM_API_KEY),
-      queryLastFm("user.getWeeklyTrackChart", { user: username }, env.LASTFM_API_KEY),
+    const primaryMethod = focus === "artists" ? "user.getTopArtists" : "user.getTopAlbums";
+    const primaryChartKey = focus === "artists" ? "topartists" : "topalbums";
+    const primaryItemKey = focus === "artists" ? "artist" : "album";
+    const [primaryPayload, trackPayload] = await Promise.all([
+      queryLastFm(primaryMethod, {
+        user: username,
+        period: periodKey,
+        limit: "5",
+      }, env.LASTFM_API_KEY),
+      queryLastFm("user.getTopTracks", {
+        user: username,
+        period: periodKey,
+        limit: "5",
+      }, env.LASTFM_API_KEY),
     ]);
 
-    const albumChart = albumPayload.weeklyalbumchart || {};
-    const trackChart = trackPayload.weeklytrackchart || {};
-    const period = getPeriod(albumChart, trackChart);
-    const albums = await addAlbumArtwork(
-      toList(albumChart.album).slice(0, 5).map((album, index) => normalizeAlbum(album, index)),
-      env.LASTFM_API_KEY,
-    );
+    const primaryChart = primaryPayload[primaryChartKey] || {};
+    const trackChart = trackPayload.toptracks || {};
+    const primaryItems = toList(primaryChart[primaryItemKey]).slice(0, 5);
+    const albums = focus === "albums"
+      ? await addAlbumArtwork(primaryItems.map((album, index) => normalizeAlbum(album, index)), env.LASTFM_API_KEY)
+      : [];
+    const artists = focus === "artists"
+      ? await addArtistArtwork(primaryItems.map((artist, index) => normalizeArtist(artist, index)), env.LASTFM_API_KEY)
+      : [];
 
     return respond({
-      username: getText(albumChart["@attr"]?.user) || getText(trackChart["@attr"]?.user) || username,
-      period,
+      username: getText(primaryChart["@attr"]?.user) || getText(trackChart["@attr"]?.user) || username,
+      period: { key: periodKey, label: PERIOD_LABELS[periodKey] },
+      focus,
       albums,
+      artists,
       tracks: toList(trackChart.track).slice(0, 5).map((track, index) => normalizeTrack(track, index)),
       source: "Last.fm",
     });
@@ -83,12 +116,20 @@ async function addAlbumArtwork(albums, apiKey) {
   }));
 }
 
-function getPeriod(albumChart, trackChart) {
-  const attributes = albumChart["@attr"] || trackChart["@attr"] || {};
-  return {
-    from: Number(attributes.from) || null,
-    to: Number(attributes.to) || null,
-  };
+async function addArtistArtwork(artists, apiKey) {
+  return Promise.all(artists.map(async (artist) => {
+    if (artist.image || !artist.name) return artist;
+
+    try {
+      const payload = await queryLastFm("artist.getInfo", {
+        artist: artist.name,
+        autocorrect: "1",
+      }, apiKey);
+      return { ...artist, image: getImage(payload.artist?.image) };
+    } catch {
+      return artist;
+    }
+  }));
 }
 
 function normalizeAlbum(album, index) {
@@ -108,6 +149,15 @@ function normalizeTrack(track, index) {
     artist: getText(track.artist?.name || track.artist) || "Artista desconhecido",
     playcount: getNumber(track.playcount),
     image: getImage(track.image),
+  };
+}
+
+function normalizeArtist(artist, index) {
+  return {
+    rank: getRank(artist, index),
+    name: getText(artist.name) || "Artista desconhecido",
+    playcount: getNumber(artist.playcount),
+    image: getImage(artist.image),
   };
 }
 

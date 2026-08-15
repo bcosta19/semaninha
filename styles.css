@@ -29,7 +29,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -242,6 +243,46 @@ h1 em {
   color: #68665f;
   font-size: 10px;
   line-height: 1.6;
+}
+
+.options-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 540px;
+  margin-top: 15px;
+}
+
+.option-field label {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.option-field select {
+  width: 100%;
+  min-height: 45px;
+  padding: 0 12px;
+  border: 1px solid rgba(244, 241, 233, 0.22);
+  border-radius: 4px;
+  outline: 0;
+  color: var(--paper);
+  background: rgba(244, 241, 233, 0.045);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.option-field select:focus {
+  border-color: var(--lime);
+  background: rgba(216, 243, 106, 0.05);
+}
+
+.option-field select option {
+  color: var(--ink);
+  background: var(--paper);
 }
 
 .status {
@@ -690,6 +731,10 @@ h1 em {
 
   .input-row input {
     height: 55px;
+  }
+
+  .options-row {
+    grid-template-columns: 1fr;
   }
 
   .submit-button {

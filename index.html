@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#111111" />
     <meta
       name="description"
-      content="Crie uma arte com o que você mais ouviu na última semana."
+      content="Crie uma arte com o que você mais ouviu nos últimos dias ou no último mês."
     />
     <title>semaninha — sua semana em música</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -30,11 +30,11 @@
 
       <section class="hero" aria-labelledby="page-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> sua retrospectiva de 7 dias</p>
+          <p class="eyebrow"><span class="eyebrow-dot"></span> sua retrospectiva musical</p>
           <h1 id="page-title">uma semana.<br /><em>muitas histórias.</em></h1>
           <p class="intro">
-            Digite seu usuário do Last.fm e transforme seus álbuns e músicas mais
-            ouvidos em uma arte para guardar ou compartilhar.
+            Digite seu usuário do Last.fm, escolha o período e transforme o que você
+            mais ouviu em uma arte para guardar ou compartilhar.
           </p>
 
           <form id="lookup-form" class="lookup-form">
@@ -56,6 +56,22 @@
                 <span>montar arte</span>
                 <span aria-hidden="true">↗</span>
               </button>
+            </div>
+            <div class="options-row">
+              <div class="option-field">
+                <label for="period">Período</label>
+                <select id="period" name="period">
+                  <option value="7day" selected>últimos 7 dias</option>
+                  <option value="1month">último mês</option>
+                </select>
+              </div>
+              <div class="option-field">
+                <label for="focus">Destaque principal</label>
+                <select id="focus" name="focus">
+                  <option value="albums" selected>álbuns</option>
+                  <option value="artists">artistas</option>
+                </select>
+              </div>
             </div>
             <p class="form-hint">Você precisa ter o scrobbling do Spotify conectado ao Last.fm.</p>
           </form>

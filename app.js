@@ -1,5 +1,7 @@
 const form = document.querySelector("#lookup-form");
 const usernameInput = document.querySelector("#username");
+const periodInput = document.querySelector("#period");
+const focusInput = document.querySelector("#focus");
 const statusMessage = document.querySelector("#status");
 const submitButton = form.querySelector("button[type=submit]");
 const emptyArt = document.querySelector("#empty-art");
@@ -13,16 +15,23 @@ form.addEventListener("submit", async (event) => {
   if (!username) return;
 
   setLoading(true);
-  setStatus("buscando a sua semana...", "");
+  setStatus("buscando a sua seleção...", "");
 
   try {
-    const response = await fetch(`/api/weekly?username=${encodeURIComponent(username)}`);
+    const params = new URLSearchParams({
+      username,
+      period: periodInput.value,
+      focus: focusInput.value,
+    });
+    const response = await fetch(`/api/weekly?${params}`);
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Não foi possível montar sua arte.");
 
     currentData = data;
     renderPreview(data);
-    setStatus(`${data.tracks.length} faixas e ${data.albums.length} álbuns encontrados.`, "success");
+    const primaryItems = data.focus === "artists" ? data.artists : data.albums;
+    const primaryLabel = data.focus === "artists" ? "artistas" : "álbuns";
+    setStatus(`${primaryItems.length} ${primaryLabel} e ${data.tracks.length} faixas encontrados.`, "success");
   } catch (error) {
     setStatus(error.message || "Não foi possível consultar o Last.fm.", "");
   } finally {
@@ -31,7 +40,8 @@ form.addEventListener("submit", async (event) => {
 });
 
 function renderPreview(data) {
-  const albums = data.albums.slice(0, 3);
+  const primaryItems = (data.focus === "artists" ? data.artists : data.albums).slice(0, 3);
+  const primaryLabel = data.focus === "artists" ? "artistas" : "álbuns";
   const tracks = data.tracks.slice(0, 5);
   const period = formatPeriod(data.period);
 
@@ -42,12 +52,12 @@ function renderPreview(data) {
         <span class="art-spark" aria-hidden="true">✳</span>
       </div>
       <div class="art-title">
-        <small>sua semana,</small>
+        <small>${escapeHtml(primaryLabel)},</small>
         <strong title="${escapeAttribute(`@${data.username}`)}">@${escapeHtml(data.username)}</strong>
         <span class="art-meta">${escapeHtml(period)}</span>
       </div>
       <div class="art-albums">
-        ${albums.length ? albums.map((album) => albumMarkup(album)).join("") : emptyAlbumMarkup()}
+        ${primaryItems.length ? primaryItems.map((item) => primaryItemMarkup(item, data.focus)).join("") : emptyPrimaryMarkup(data.focus)}
       </div>
       <div class="art-tracks">
         <div class="art-section-label"><span>faixas mais ouvidas</span><span>plays</span></div>
@@ -73,25 +83,27 @@ function renderPreview(data) {
   preview.querySelector("#new-search-button").addEventListener("click", resetSearch);
 }
 
-function albumMarkup(album) {
-  const image = album.image ? `<img src="${imageUrl(album.image)}" alt="" />` : "";
+function primaryItemMarkup(item, focus) {
+  const image = item.image ? `<img src="${imageUrl(item.image)}" alt="" />` : "";
+  const secondary = focus === "artists" ? `${formatNumber(item.playcount)} plays` : item.artist;
   return `
     <div class="album-tile">
       <div class="cover">
-        <span class="album-rank">0${album.rank}</span>
-        ${image}<span class="cover-placeholder">${escapeHtml(initials(album.name))}</span>
+        <span class="album-rank">0${item.rank}</span>
+        ${image}<span class="cover-placeholder">${escapeHtml(initials(item.name))}</span>
       </div>
-      <span class="album-name" title="${escapeAttribute(album.name)}">${escapeHtml(album.name)}</span>
-      <span class="album-artist" title="${escapeAttribute(album.artist)}">${escapeHtml(album.artist)}</span>
+      <span class="album-name" title="${escapeAttribute(item.name)}">${escapeHtml(item.name)}</span>
+      <span class="album-artist" title="${escapeAttribute(secondary)}">${escapeHtml(secondary)}</span>
     </div>
   `;
 }
 
-function emptyAlbumMarkup() {
+function emptyPrimaryMarkup(focus) {
+  const label = focus === "artists" ? "artista" : "álbum";
   return [1, 2, 3].map((rank) => `
     <div class="album-tile">
       <div class="cover"><span class="album-rank">0${rank}</span><span class="cover-placeholder">—</span></div>
-      <span class="album-name">sem álbum</span>
+      <span class="album-name">sem ${label}</span>
       <span class="album-artist">sem scrobble</span>
     </div>
   `).join("");
@@ -166,7 +178,7 @@ async function buildCanvas(data) {
 
   ctx.fillStyle = lime;
   ctx.font = "500 26px 'Space Grotesk', sans-serif";
-  ctx.fillText("sua semana,", 60, 145);
+  ctx.fillText(`${data.focus === "artists" ? "artistas" : "álbuns"},`, 60, 145);
   ctx.fillStyle = paper;
   ctx.font = "600 88px 'Space Grotesk', sans-serif";
   ctx.fillText(`@${truncate(data.username, 18)}`, 60, 225);
@@ -174,17 +186,17 @@ async function buildCanvas(data) {
   ctx.font = "400 18px 'DM Mono', monospace";
   ctx.fillText(formatPeriod(data.period), 60, 263);
 
-  const albums = data.albums.slice(0, 3);
+  const primaryItems = (data.focus === "artists" ? data.artists : data.albums).slice(0, 3);
   const albumSize = 294;
   const albumGap = 30;
   const albumY = 315;
   for (let index = 0; index < 3; index += 1) {
-    const album = albums[index];
+    const item = primaryItems[index];
     const x = 60 + index * (albumSize + albumGap);
     ctx.save();
     roundedRect(ctx, x, albumY, albumSize, albumSize, 2);
     ctx.clip();
-    const image = album?.image ? await loadImage(imageUrl(album.image)) : null;
+    const image = item?.image ? await loadImage(imageUrl(item.image)) : null;
     if (image) {
       drawCover(ctx, image, x, albumY, albumSize, albumSize);
     } else {
@@ -194,21 +206,22 @@ async function buildCanvas(data) {
       ctx.font = "700 46px 'Space Grotesk', sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(album ? initials(album.name) : "—", x + albumSize / 2, albumY + albumSize / 2);
+      ctx.fillText(item ? initials(item.name) : "—", x + albumSize / 2, albumY + albumSize / 2);
       ctx.textAlign = "start";
       ctx.textBaseline = "alphabetic";
     }
     ctx.restore();
     ctx.fillStyle = paper;
     ctx.font = "500 17px 'DM Mono', monospace";
-    ctx.fillText(`0${album?.rank || index + 1}`, x + 13, albumY + 30);
-    if (album) {
+    ctx.fillText(`0${item?.rank || index + 1}`, x + 13, albumY + 30);
+    if (item) {
       ctx.fillStyle = paper;
       ctx.font = "600 22px 'Space Grotesk', sans-serif";
-      ctx.fillText(truncate(album.name, 19), x, albumY + albumSize + 35);
+      ctx.fillText(truncate(item.name, 19), x, albumY + albumSize + 35);
       ctx.fillStyle = muted;
       ctx.font = "400 14px 'DM Mono', monospace";
-      ctx.fillText(truncate(album.artist, 24), x, albumY + albumSize + 59);
+      const secondary = data.focus === "artists" ? `${formatNumber(item.playcount)} plays` : item.artist;
+      ctx.fillText(truncate(secondary, 24), x, albumY + albumSize + 59);
     }
   }
 
@@ -302,6 +315,7 @@ function imageUrl(source) {
 }
 
 function formatPeriod(period) {
+  if (period?.label) return period.label;
   if (!period?.from || !period?.to) return "últimos 7 dias";
   const format = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" });
   return `${format.format(new Date(period.from * 1000)).replace(".", "")} — ${format.format(new Date(period.to * 1000)).replace(".", "")}`;

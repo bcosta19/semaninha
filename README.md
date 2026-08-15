@@ -4,6 +4,8 @@ Uma página única que consulta a semana mais recente do Last.fm e monta uma art
 
 O projeto é estático e usa uma Cloudflare Pages Function para manter a chave da API do Last.fm no servidor. O histórico só aparece se a conta tiver o Spotify conectado ao Last.fm (ou outra fonte de scrobbling configurada).
 
+A consulta usa os últimos 7 dias por padrão e permite alternar para o último mês. Álbuns são o destaque principal; artistas podem ser selecionados como destaque alternativo, mantendo as faixas como lista complementar.
+
 ## Rodar localmente
 
 1. Crie uma chave em [last.fm/api/account/create](https://www.last.fm/api/account/create).
