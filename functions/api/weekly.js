@@ -63,7 +63,7 @@ export async function onRequestGet({ request, env }) {
 
     const primaryChart = primaryPayload[primaryChartKey] || {};
     const trackChart = trackPayload.toptracks || {};
-    const primaryItems = toList(primaryChart[primaryItemKey]).slice(0, 5);
+    const primaryItems = toList(primaryChart[primaryItemKey]).slice(0, GRID_SIZES[gridKey]);
     const albums = focus === "albums"
       ? await addAlbumArtwork(primaryItems.map((album, index) => normalizeAlbum(album, index)), env.LASTFM_API_KEY)
       : [];
