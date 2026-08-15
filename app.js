@@ -72,6 +72,11 @@ function renderPreview(data) {
   });
   preview.querySelector("#download-button").addEventListener("click", downloadImage);
   preview.querySelector("#new-search-button").addEventListener("click", resetSearch);
+
+  const stage = document.querySelector("#card-stage");
+  if (stage) {
+    stage.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function gridTileMarkup(item, index) {

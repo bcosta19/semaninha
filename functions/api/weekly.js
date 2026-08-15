@@ -112,10 +112,8 @@ async function queryLastFm(method, parameters, apiKey) {
 }
 
 async function addAlbumArtwork(albums, apiKey) {
-  let lookupsRemaining = 8;
   return Promise.all(albums.map(async (album) => {
-    if (album.image || !album.artist || !album.name || lookupsRemaining <= 0) return album;
-    lookupsRemaining -= 1;
+    if (album.image || !album.artist || !album.name) return album;
 
     try {
       const payload = await queryLastFm("album.getInfo", {
@@ -131,17 +129,27 @@ async function addAlbumArtwork(albums, apiKey) {
 }
 
 async function addArtistArtwork(artists, apiKey) {
-  let lookupsRemaining = 8;
   return Promise.all(artists.map(async (artist) => {
-    if (artist.image || !artist.name || lookupsRemaining <= 0) return artist;
-    lookupsRemaining -= 1;
+    if (artist.image || !artist.name) return artist;
 
     try {
       const payload = await queryLastFm("artist.getInfo", {
         artist: artist.name,
         autocorrect: "1",
       }, apiKey);
-      return { ...artist, image: getImage(payload.artist?.image) };
+      const img = getImage(payload.artist?.image);
+      if (img) {
+        return { ...artist, image: img };
+      }
+
+      const albumPayload = await queryLastFm("artist.getTopAlbums", {
+        artist: artist.name,
+        limit: "1",
+        autocorrect: "1",
+      }, apiKey);
+      const topAlbum = toList(albumPayload.topalbums?.album)[0];
+      const albumImg = getImage(topAlbum?.image);
+      return { ...artist, image: albumImg || "" };
     } catch {
       return artist;
     }

@@ -29,16 +29,41 @@
       </header>
 
       <section class="hero" aria-labelledby="page-title">
-        <div class="hero-copy">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> sua retrospectiva musical</p>
-          <h1 id="page-title">uma semana.<br /><em>muitas histórias.</em></h1>
-          <p class="intro">
-            Digite seu usuário do Last.fm, escolha o período e transforme o que você
-            mais ouviu em uma arte para guardar ou compartilhar.
-          </p>
+        <header class="hero-header">
+          <p class="eyebrow"><span class="eyebrow-dot"></span> compartilhe com os amigos</p>
+          <h1 id="page-title">mostre o que você<br /><em>andou ouvindo.</em></h1>
+        </header>
 
+        <!-- CARD STAGE (Focal visual point at top) -->
+        <div class="card-stage" id="card-stage">
+          <div class="empty-art-container" id="empty-art">
+            <div class="floating-label floating-label-top">top da semana</div>
+            <div class="floating-label floating-label-bottom">feita para compartilhar</div>
+            <div class="empty-art-body">
+              <div class="empty-art-top">
+                <span>semaninha / 01</span>
+                <span class="empty-spark">✳</span>
+              </div>
+              <div class="empty-art-center">
+                <span class="empty-number">?</span>
+                <span>qual foi<br />a sua trilha?</span>
+              </div>
+              <div class="empty-art-bottom">
+                <span>álbuns</span>
+                <span>músicas</span>
+                <span>memórias</span>
+              </div>
+            </div>
+          </div>
+          <div id="preview" class="preview-wrap" hidden></div>
+        </div>
+
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+
+        <!-- CONTROLS (Positioned below the card) -->
+        <div class="controls-section">
           <form id="lookup-form" class="lookup-form">
-            <label for="username">Seu usuário Last.fm</label>
+            <label for="username" class="form-label">Seu usuário Last.fm</label>
             <div class="input-row">
               <span class="input-prefix" aria-hidden="true">@</span>
               <input
@@ -66,14 +91,14 @@
                 </select>
               </div>
               <div class="option-field">
-                <label for="focus">Destaque principal</label>
+                <label for="focus">Destaque</label>
                 <select id="focus" name="focus">
                   <option value="albums" selected>álbuns</option>
                   <option value="artists">artistas</option>
                 </select>
               </div>
               <div class="option-field">
-                <label for="grid">Grade da arte</label>
+                <label for="grid">Grade</label>
                 <select id="grid" name="grid">
                   <option value="3">3 × 3</option>
                   <option value="5" selected>5 × 5</option>
@@ -83,28 +108,6 @@
             </div>
             <p class="form-hint">Você precisa ter o scrobbling do Spotify conectado ao Last.fm.</p>
           </form>
-          <p id="status" class="status" role="status" aria-live="polite"></p>
-        </div>
-
-        <div class="hero-art" aria-label="Prévia da arte semanal">
-          <div class="floating-label floating-label-top">top da semana</div>
-          <div class="floating-label floating-label-bottom">feita para compartilhar</div>
-          <div class="empty-art" id="empty-art">
-            <div class="empty-art-top">
-              <span>semaninha / 01</span>
-              <span class="empty-spark">✳</span>
-            </div>
-            <div class="empty-art-center">
-              <span class="empty-number">?</span>
-              <span>qual foi<br />a sua trilha?</span>
-            </div>
-            <div class="empty-art-bottom">
-              <span>álbuns</span>
-              <span>músicas</span>
-              <span>memórias</span>
-            </div>
-          </div>
-          <div id="preview" class="preview-wrap" hidden></div>
         </div>
       </section>
 
